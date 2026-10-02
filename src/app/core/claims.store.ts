@@ -14,19 +14,20 @@ export type ClaimsState = {
 
 export type AppState = { claims: ClaimsState }
 
-const persisted = localStorage.getItem('property-claims-draft-v1')
+/** 案件事实以后端（mock API）为唯一来源；本地仅持久化未提交草稿。 */
+const persistedDraftRaw = localStorage.getItem('property-claims-draft-v1')
+// 旧版本曾把整个案件状态 JSON 存到该键，识别后忽略，避免把 JSON 当成草稿文本
+const persistedDraft = persistedDraftRaw && !persistedDraftRaw.trimStart().startsWith('{') ? persistedDraftRaw : null
 
-export const initialClaimsState: ClaimsState = persisted
-  ? JSON.parse(persisted)
-  : {
-      items: structuredClone(seedClaims),
-      filters: { query: '', status: '', risk: '', page: 1, pageSize: 10 },
-      total: seedClaims.length,
-      selectedId: seedClaims[0].id,
-      loading: false,
-      draft: '待补充房屋檩条第三方复测依据。',
-      toast: '',
-    }
+export const initialClaimsState: ClaimsState = {
+  items: structuredClone(seedClaims),
+  filters: { query: '', status: '', risk: '', page: 1, pageSize: 10 },
+  total: seedClaims.length,
+  selectedId: seedClaims[0].id,
+  loading: false,
+  draft: persistedDraft ?? '待补充房屋檩条第三方复测依据。',
+  toast: '',
+}
 
 export const loadClaimsSuccess = createAction('[Claims] Load Success', props<{ items: ClaimCase[]; total: number }>())
 export const setFilters = createAction('[Claims] Set Filters', props<{ filters: Partial<ClaimFilters> }>())
@@ -40,7 +41,10 @@ export const claimsReducer = createReducer(
   on(loadClaimsSuccess, (state, { items, total }) => ({ ...state, items, total, loading: false })),
   on(setFilters, (state, { filters }) => ({ ...state, filters: { ...state.filters, ...filters } })),
   on(selectClaim, (state, { id }) => ({ ...state, selectedId: id })),
-  on(saveDraft, (state, { draft }) => ({ ...state, draft, toast: '草稿已恢复并保存到本地' })),
+  on(saveDraft, (state, { draft }) => {
+    localStorage.setItem('property-claims-draft-v1', draft)
+    return { ...state, draft, toast: '草稿已恢复并保存到本地' }
+  }),
   on(updateClaim, (state, { claim }) => ({
     ...state,
     items: state.items.map((item) => (item.id === claim.id ? claim : item)),

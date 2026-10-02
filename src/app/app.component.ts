@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core'
 import { CommonModule } from '@angular/common'
+import { FormsModule } from '@angular/forms'
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router'
 import { MatSidenavModule } from '@angular/material/sidenav'
 import { MatToolbarModule } from '@angular/material/toolbar'
@@ -7,16 +8,23 @@ import { MatIconModule } from '@angular/material/icon'
 import { MatButtonModule } from '@angular/material/button'
 import { MatListModule } from '@angular/material/list'
 import { MatChipsModule } from '@angular/material/chips'
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
+import { MatSelectModule } from '@angular/material/select'
+import { MatSnackBar } from '@angular/material/snack-bar'
 import { Store } from '@ngrx/store'
+import { combineLatest } from 'rxjs'
 import { ClaimsService } from './core/claims.service'
-import { loadClaimsSuccess, selectClaimsState, type AppState } from './core/claims.store'
+import { LedgerService } from './core/ledger.service'
+import { SessionService } from './core/session.service'
+import { currentDutiesOf } from './core/authorization'
+import { loadClaimsSuccess, updateClaim, type AppState } from './core/claims.store'
+import type { Person, RoleLedger } from './core/models'
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -26,7 +34,7 @@ import { loadClaimsSuccess, selectClaimsState, type AppState } from './core/clai
     MatButtonModule,
     MatListModule,
     MatChipsModule,
-    MatSnackBarModule,
+    MatSelectModule,
   ],
   template: `
     <mat-sidenav-container class="shell">
@@ -53,12 +61,24 @@ import { loadClaimsSuccess, selectClaimsState, type AppState } from './core/clai
           </a>
           <a mat-list-item routerLink="/audit" routerLinkActive="active">
             <mat-icon matListItemIcon>history</mat-icon>
-            <span matListItemTitle>审计与附件</span>
+            <span matListItemTitle>审计与权限台账</span>
           </a>
         </mat-nav-list>
-        <div class="side-note">
-          <div class="sync"><i></i> 可恢复草稿已保存</div>
-          <small>最后同步 16:42 · 规则版本 2026.09</small>
+        <div class="session">
+          <label>当前操作者（模拟终端登录）</label>
+          <mat-select [value]="session.personId" (selectionChange)="switchPerson($event.value)" panelClass="session-panel">
+            <mat-option *ngFor="let person of persons" [value]="person.id">
+              {{ person.name }} · {{ person.title }}
+            </mat-option>
+          </mat-select>
+          <div class="duties" *ngIf="currentDutyNames as names">
+            <span *ngFor="let name of names" class="duty-chip">{{ name }}</span>
+            <span *ngIf="names.length === 0" class="duty-chip empty">当前无职责</span>
+          </div>
+          <small class="terminal">
+            <mat-icon>computer</mat-icon>{{ session.terminalId }} · 台账 v{{ ledger?.version ?? '-' }}
+          </small>
+          <button class="reset-btn" (click)="resetDemo()"><mat-icon>restart_alt</mat-icon> 重置演示数据</button>
         </div>
       </mat-sidenav>
       <mat-sidenav-content>
@@ -81,10 +101,18 @@ import { loadClaimsSuccess, selectClaimsState, type AppState } from './core/clai
     mat-nav-list { padding: 16px 10px; }
     mat-nav-list a { margin-bottom: 4px; border-radius: 7px; color: #b9cbd4; }
     mat-nav-list a.active { color: #fff; background: #235062; box-shadow: inset 3px 0 #66b6c2; }
-    .side-note { position: absolute; right: 12px; bottom: 14px; left: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; background: rgba(255,255,255,.04); }
-    .sync { font-size: 11px; font-weight: 700; }
-    .sync i { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #56b989; }
-    .side-note small { display: block; margin-top: 6px; color: #92a8b3; font-size: 9px; }
+    .session { position: absolute; right: 12px; bottom: 14px; left: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(255,255,255,.05); }
+    .session label { display: block; margin-bottom: 6px; color: #9db3bd; font-size: 10px; }
+    .session mat-select { width: 100%; height: 34px; margin: 0; padding: 4px 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; color: #e8f0f3; font-size: 12px; background: rgba(255,255,255,.06); }
+    ::ng-deep .session .mat-mdc-select-value, ::ng-deep .session .mat-mdc-select-arrow { color: #e8f0f3; }
+    .duties { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .duty-chip { padding: 2px 7px; border-radius: 9px; color: #9fd8e0; background: rgba(102,182,194,.18); font-size: 10px; }
+    .duty-chip.empty { color: #e0a98f; background: rgba(206,116,62,.18); }
+    .terminal { display: flex; align-items: center; gap: 4px; margin-top: 8px; color: #92a8b3; font-size: 9px; }
+    .terminal mat-icon { width: 12px; height: 12px; font-size: 12px; }
+    .reset-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; color: #b9cbd4; background: transparent; font-size: 10px; cursor: pointer; }
+    .reset-btn:hover { color: #fff; border-color: #66b6c2; }
+    .reset-btn mat-icon { width: 13px; height: 13px; font-size: 13px; }
     .mobile-bar { display: none; }
     mat-sidenav-content { min-width: 0; }
     @media (max-width: 820px) {
@@ -95,9 +123,14 @@ import { loadClaimsSuccess, selectClaimsState, type AppState } from './core/clai
 })
 export class AppComponent implements OnInit {
   mobileOpen = false
+  ledger: RoleLedger | null = null
+  persons: Person[] = []
+  currentDutyNames: string[] = []
 
   constructor(
+    readonly session: SessionService,
     private readonly service: ClaimsService,
+    private readonly ledgerStore: LedgerService,
     private readonly store: Store<AppState>,
     private readonly snackBar: MatSnackBar,
   ) {}
@@ -106,9 +139,25 @@ export class AppComponent implements OnInit {
     this.service.list({ query: '', status: '', risk: '', page: 1, pageSize: 10 }).subscribe((result) => {
       this.store.dispatch(loadClaimsSuccess({ items: result.items, total: result.total }))
     })
-    this.store.select(selectClaimsState).subscribe((state) => {
-      localStorage.setItem('property-claims-draft-v1', JSON.stringify(state))
-      if (state.toast) this.snackBar.open(state.toast, '关闭', { duration: 1800 })
+    combineLatest([this.ledgerStore.ledger$, this.session.personId$]).subscribe(([ledger, personId]) => {
+      this.ledger = ledger
+      this.persons = ledger.persons
+      this.currentDutyNames = currentDutiesOf(ledger, personId).map((duty) => duty.name)
+    })
+  }
+
+  switchPerson(personId: string) {
+    this.session.switchPerson(personId)
+    this.snackBar.open(`已切换操作者，会签与报价将按其当前职责重新授权`, '关闭', { duration: 1600 })
+  }
+
+  resetDemo() {
+    this.service.resetDemo().subscribe(() => {
+      this.service.list({ query: '', status: '', risk: '', page: 1, pageSize: 10 }).subscribe((result) => {
+        this.store.dispatch(loadClaimsSuccess({ items: result.items, total: result.total }))
+        result.items.forEach((claim) => this.store.dispatch(updateClaim({ claim })))
+      })
+      this.snackBar.open('演示数据、角色台账与会签状态已重置', '关闭', { duration: 1800 })
     })
   }
 }

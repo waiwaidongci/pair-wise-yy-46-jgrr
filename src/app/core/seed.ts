@@ -62,10 +62,10 @@ export const seedClaims: ClaimCase[] = [
       },
     ],
     approvals: [
-      { role: '查勘员提交', threshold: 0, status: '已通过', operator: '陆嘉', comment: '现场查勘与资料收集完成。', completedAt: '2026-09-19 10:30' },
-      { role: '高级核赔员', threshold: 500000, status: '待处理' },
-      { role: '理赔经理', threshold: 1000000, status: '待处理' },
-      { role: '区域负责人', threshold: 1500000, status: '待处理' },
+      { dutyId: 'DUTY-SURVEYOR', role: '查勘员提交', threshold: 0, status: '已通过', operator: '陆嘉', comment: '现场查勘与资料收集完成。', completedAt: '2026-09-19 10:30' },
+      { dutyId: 'DUTY-SR-ADJUSTER', role: '高级核赔员', threshold: 500000, status: '待处理' },
+      { dutyId: 'DUTY-CLAIMS-MGR', role: '理赔经理', threshold: 1000000, status: '待处理' },
+      { dutyId: 'DUTY-REGION-HEAD', role: '区域负责人', threshold: 1500000, status: '待处理' },
     ],
     audit: [
       { id: 'A-01', at: '09-08 21:32', operator: '报案中心', action: '案件受理', detail: '完成初步报案信息登记。' },
@@ -114,9 +114,9 @@ export const seedClaims: ClaimCase[] = [
       },
     ],
     approvals: [
-      { role: '查勘员提交', threshold: 0, status: '已通过', operator: '林澈', completedAt: '2026-09-24 17:00' },
-      { role: '高级核赔员', threshold: 500000, status: '待处理' },
-      { role: '理赔经理', threshold: 1000000, status: '待处理' },
+      { dutyId: 'DUTY-SURVEYOR', role: '查勘员提交', threshold: 0, status: '已通过', operator: '林澈', completedAt: '2026-09-24 17:00' },
+      { dutyId: 'DUTY-SR-ADJUSTER', role: '高级核赔员', threshold: 500000, status: '待处理' },
+      { dutyId: 'DUTY-CLAIMS-MGR', role: '理赔经理', threshold: 1000000, status: '待处理' },
     ],
     audit: [
       { id: 'A-11', at: '09-21 06:18', operator: '报案中心', action: '案件受理', detail: '台风损失报案。' },

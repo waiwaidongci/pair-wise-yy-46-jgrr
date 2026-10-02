@@ -6,6 +6,7 @@
     "start": "ng serve --host 0.0.0.0 --port 62046",
     "dev": "ng serve --host 0.0.0.0 --port 62046",
     "build": "ng build",
+    "test:auth": "esbuild scripts/test-authorization.ts --bundle --platform=node --format=esm --outfile=scripts/.test-auth.mjs && node scripts/.test-auth.mjs && rm -f scripts/.test-auth.mjs",
     "preview": "npx http-server dist/pair-wise-yy-46/browser -p 62046 -a 0.0.0.0"
   },
   "dependencies": {
