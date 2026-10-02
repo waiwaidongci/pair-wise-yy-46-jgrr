@@ -80,11 +80,19 @@ import { StatusChipComponent } from '../shared/status-chip.component'
                   </div>
                 </div>
                 <div class="quote-history">
-                  <h4>报价版本</h4>
+                  <h4>报价版本<small class="muted">每次提交封存操作者与当时职责</small></h4>
                   <table mat-table [dataSource]="item.repairQuotes">
                     <ng-container matColumnDef="version"><th mat-header-cell *matHeaderCellDef>版本</th><td mat-cell *matCellDef="let quote">V{{ quote.version }}</td></ng-container>
                     <ng-container matColumnDef="amount"><th mat-header-cell *matHeaderCellDef>金额</th><td mat-cell *matCellDef="let quote">{{ quote.amount | currency:'CNY':'symbol':'1.0-0' }}</td></ng-container>
-                    <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>调整理由</th><td mat-cell *matCellDef="let quote">{{ quote.reason }}<small>{{ quote.operator }} · {{ quote.createdAt }}</small></td></ng-container>
+                    <ng-container matColumnDef="reason">
+                      <th mat-header-cell *matHeaderCellDef>调整理由 / 操作者依据</th>
+                      <td mat-cell *matCellDef="let quote">
+                        {{ quote.reason }}
+                        <small>{{ quote.operator }} · {{ quote.createdAt }}</small>
+                        <small *ngIf="quote.operatorDuties?.length">当时职责：{{ quote.operatorDuties.join('、') }}</small>
+                        <app-status-chip *ngIf="quote.recordStatus === '待补录'" label="职责待补录" tone="warn" />
+                      </td>
+                    </ng-container>
                     <tr mat-header-row *matHeaderRowDef="quoteColumns"></tr>
                     <tr mat-row *matRowDef="let row; columns: quoteColumns"></tr>
                   </table>
@@ -206,10 +214,17 @@ export class AssessmentPageComponent {
 
   submitQuote(claimId: string, itemId: string) {
     if (!this.quoteReason.trim()) return
-    this.service.addQuote(claimId, { itemId, amount: Number(this.quoteAmount), reason: this.quoteReason }).subscribe(() => {
-      this.store.select(selectSelectedClaim).subscribe((claim) => this.store.dispatch(updateClaim({ claim: structuredClone(claim) })))
-      this.snackBar.open('新报价版本已生成，原记录保持可追溯', '关闭', { duration: 2200 })
-      this.quotingItemId = ''
+    this.service.addQuote(claimId, { itemId, amount: Number(this.quoteAmount), reason: this.quoteReason }).subscribe({
+      next: ({ body, replayed }) => {
+        this.store.dispatch(updateClaim({ claim: structuredClone(body) }))
+        this.snackBar.open(
+          replayed ? '写入结果丢失，已按请求号恢复（未重复生成版本）' : '新报价版本已生成，操作者与当时职责已封存',
+          '关闭',
+          { duration: 2600 },
+        )
+        this.quotingItemId = ''
+      },
+      error: () => this.snackBar.open('报价写入失败，请重试（将按请求号恢复，不会重复提交）', '关闭', { duration: 2600 }),
     })
   }
 
